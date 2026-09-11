@@ -35,18 +35,20 @@
   }
   @keyframes pulse-dot { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
   .live-dot { animation: pulse-dot 2s ease-in-out infinite; }
+  @keyframes shake { 0%,100% { transform: translateX(0) } 20% { transform: translateX(-9px) } 40% { transform: translateX(8px) } 60% { transform: translateX(-6px) } 80% { transform: translateX(4px) } }
+  .shake { animation: shake .4s ease; }
 </style>
 </head>
 <body class="text-slate-300 antialiased">
 
 <!-- ═══════════ PIN GATE ═══════════ -->
 <div id="gate" class="fixed inset-0 z-50 bg-[#0a0512] flex items-center justify-center px-5">
-  <div class="w-full max-w-sm clip-chamfer border border-purple-700/40 bg-[#0d0618] p-8 text-center shadow-2xl shadow-purple-950/50">
+  <div id="gate-card" class="w-full max-w-sm clip-chamfer border border-purple-700/40 bg-[#0d0618] p-8 text-center shadow-2xl shadow-purple-950/50">
     <img src="https://raw.githubusercontent.com/simaxai/LOGOBILALMY/main/Discord-Bilal.png" class="w-20 h-20 mx-auto object-contain" style="filter: drop-shadow(0 0 14px rgba(147,51,234,.4));" alt="">
     <h1 class="font-disp text-xl text-white mt-4 tracking-wide">BILAL CHEAT <span class="text-purple-400">· ADMIN</span></h1>
-    <p id="gate-hint" class="text-xs text-slate-500 mt-2">Set your admin PIN (first visit)</p>
-    <input id="pin-input" type="password" inputmode="numeric" maxlength="12" placeholder="••••"
-           class="mt-5 w-full clip-chamfer-sm bg-[#140a24] border border-purple-800/50 px-4 py-3 text-center font-num font-bold text-2xl tracking-[.5em] text-white placeholder:text-slate-700 focus:border-purple-500 focus:outline-none transition-colors">
+    <p id="gate-hint" class="text-xs text-slate-500 mt-2 flex items-center justify-center gap-1.5"><i data-lucide="lock-keyhole" class="w-3.5 h-3.5"></i>Maker access only</p>
+    <input id="pin-input" type="password" maxlength="40" placeholder="Password" autocomplete="off"
+           class="mt-5 w-full clip-chamfer-sm bg-[#140a24] border border-purple-800/50 px-4 py-3 text-center font-num font-bold text-lg tracking-[.2em] text-white placeholder:text-slate-700 focus:border-purple-500 focus:outline-none transition-colors">
     <p id="pin-err" class="hidden text-xs text-rose-400 mt-2">Wrong PIN — try again</p>
     <button id="pin-go" class="mt-5 w-full btn-glow clip-chamfer-sm bg-purple-700 hover:bg-purple-600 text-white font-bold py-3 transition-colors" style="position:relative;overflow:hidden">Enter</button>
   </div>
@@ -275,46 +277,70 @@ if (!originAllowed()) {
   document.getElementById('gate-hint').textContent = 'This admin panel only runs on the official domain.';
   pinIn.disabled = true; document.getElementById('pin-go').disabled = true;
 }
-const PIN_SALT = 'bc-pin-salt-v1';
-const pinHash = v => djb2(v + PIN_SALT);
-let gateMode = localStorage.getItem('bc_admin_pin') ? 'login' : 'set';
-let pendingPin = '';
-let pinFails = 0, pinLockUntil = 0;
-document.getElementById('gate-hint').textContent = gateMode === 'set' ? 'Set your admin PIN (first visit)' : 'Enter your admin PIN';
+// fixed maker password — never stored, never changeable
+const _MK = [66,76,76,65,76,64,73,78,70,79].map(String.fromCharCode).join('');
+let pinFails = +localStorage.getItem('bc_fails') || 0;
+let pinLockUntil = +localStorage.getItem('bc_lock') || 0;
+try { localStorage.removeItem('bc_admin_pin'); } catch (_) {} // legacy PINs are void
+function gateShake() {
+  const c = document.getElementById('gate-card');
+  c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
+}
 function gateCheck() {
   if (!originAllowed()) return;
   if (Date.now() < pinLockUntil) {
-    pinErr.textContent = 'Too many tries — locked ' + Math.ceil((pinLockUntil - Date.now()) / 60000) + ' min';
-    pinErr.classList.remove('hidden'); return;
+    pinErr.textContent = 'Locked — try again in ' + Math.ceil((pinLockUntil - Date.now()) / 60000) + ' min';
+    pinErr.classList.remove('hidden'); gateShake(); return;
   }
   const v = pinIn.value;
-  if (gateMode === 'set') {
-    if (v.length < 4) { pinErr.textContent = 'PIN must be at least 4 digits'; pinErr.classList.remove('hidden'); return; }
-    pendingPin = v; gateMode = 'confirm';
-    document.getElementById('gate-hint').textContent = 'Confirm your PIN'; pinIn.value = ''; pinErr.classList.add('hidden');
-  } else if (gateMode === 'confirm') {
-    if (v === pendingPin) { localStorage.setItem('bc_admin_pin', pinHash(v)); enterApp(); }
-    else { pinErr.textContent = 'PINs do not match'; pinErr.classList.remove('hidden'); gateMode = 'set'; document.getElementById('gate-hint').textContent = 'Set your admin PIN'; pinIn.value = ''; }
+  if (v === _MK) {
+    pinFails = 0;
+    localStorage.removeItem('bc_fails'); localStorage.removeItem('bc_lock');
+    pinErr.classList.add('hidden');
+    enterApp();
   } else {
-    const stored = localStorage.getItem('bc_admin_pin');
-    if (pinHash(v) === stored || btoa(v) === stored) {
-      if (btoa(v) === stored) localStorage.setItem('bc_admin_pin', pinHash(v)); // upgrade legacy
-      pinFails = 0; enterApp();
+    pinFails++;
+    localStorage.setItem('bc_fails', pinFails);
+    localStorage.removeItem('bc_admin_session'); // any prior session dies on a wrong guess
+    if (pinFails >= 5) {
+      pinLockUntil = Date.now() + (pinFails >= 15 ? 86400000 : pinFails >= 10 ? 1800000 : 300000);
+      localStorage.setItem('bc_lock', pinLockUntil);
     }
-    else {
-      pinFails++;
-      if (pinFails >= 5) { pinLockUntil = Date.now() + 300000; pinFails = 0; }
-      pinErr.textContent = 'Wrong PIN' + (pinFails ? ' (' + pinFails + '/5)' : '');
-      pinErr.classList.remove('hidden'); pinIn.value = '';
-    }
+    pinErr.textContent = 'Wrong password' + (pinFails < 5 ? ' (' + pinFails + '/5)' : '');
+    pinErr.classList.remove('hidden');
+    pinIn.value = '';
+    gateShake();
   }
 }
 document.getElementById('pin-go').addEventListener('click', gateCheck);
 pinIn.addEventListener('keydown', e => { if (e.key === 'Enter') gateCheck(); });
-if ((+localStorage.getItem('bc_admin_session') || 0) > Date.now()) enterApp();
+// signed session: editing the stored value by hand fails the signature
+(function bootSession() {
+  const s = (localStorage.getItem('bc_admin_session') || '').split('.');
+  const ts = +s[0] || 0;
+  if (ts > Date.now() && s[1] === djb2('sess' + ts + _MK)) enterApp();
+})();
+
+// ── devtools ejection: open them and you're out ──
+(function eject() {
+  let strikes = 0;
+  const bye = () => { try { window.location.replace('about:blank'); } catch (_) { window.location.href = 'about:blank'; } };
+  const probe = /./;
+  probe.toString = () => { strikes = 99; return ''; };
+  setInterval(() => {
+    try { console.log(probe); } catch (_) {}
+    const t = performance.now();
+    try { (function () {})['constructor']('debugger')(); } catch (_) {}
+    if (performance.now() - t > 100) strikes = 99;
+    if (window.outerWidth - window.innerWidth > 260 || window.outerHeight - window.innerHeight > 260) strikes++;
+    else if (strikes < 99) strikes = Math.max(0, strikes - 1);
+    if (strikes >= 2) bye();
+  }, 2000);
+})();
 
 function enterApp() {
-  localStorage.setItem('bc_admin_session', String(Date.now() + 43200000)); // 12h session
+  const _ts = Date.now() + 43200000; // 12h, signed against the master key
+  localStorage.setItem('bc_admin_session', _ts + '.' + djb2('sess' + _ts + _MK));
   gate.classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('admin-url').textContent = location.origin + '/contactadmin.html';
