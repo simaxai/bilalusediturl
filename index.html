@@ -37,9 +37,34 @@
   .live-dot { animation: pulse-dot 2s ease-in-out infinite; }
   @keyframes shake { 0%,100% { transform: translateX(0) } 20% { transform: translateX(-9px) } 40% { transform: translateX(8px) } 60% { transform: translateX(-6px) } 80% { transform: translateX(4px) } }
   .shake { animation: shake .4s ease; }
+
+  /* connection gate */
+  @keyframes net-ring { 0% { transform: scale(.55); opacity: .8 } 100% { transform: scale(1.9); opacity: 0 } }
+  .net-ring { animation: net-ring 2.4s ease-out infinite; }
+  .net-ring.d2 { animation-delay: .8s; }
 </style>
 </head>
 <body class="text-slate-300 antialiased">
+
+<!-- ═══════════ CONNECTION GATE ═══════════ -->
+<div id="net-gate" class="hidden fixed inset-0 z-[200] bg-[#0a0512] flex items-center justify-center px-5">
+  <div class="absolute inset-0 pointer-events-none" style="background: radial-gradient(ellipse at 50% 40%, rgba(76,29,149,.25), transparent 60%);"></div>
+  <div class="absolute inset-0 pointer-events-none" style="background-image: radial-gradient(rgba(168,85,247,.08) 1px, transparent 1.4px); background-size: 28px 28px;"></div>
+  <div id="net-card" class="relative text-center max-w-sm w-full">
+    <div class="relative w-28 h-28 mx-auto mb-6">
+      <span class="net-ring absolute inset-0 rounded-full border border-purple-500/50"></span>
+      <span class="net-ring d2 absolute inset-0 rounded-full border border-fuchsia-500/40"></span>
+      <img src="https://raw.githubusercontent.com/simaxai/LOGOBILALMY/main/Discord-Bilal.png" class="absolute inset-0 w-full h-full object-contain" style="filter: grayscale(.6) brightness(.7) drop-shadow(0 0 10px rgba(147,51,234,.3));" alt="">
+    </div>
+    <div class="font-disp text-3xl text-white tracking-wide">NO CONNECTION</div>
+    <p id="net-msg" class="text-slate-400 text-sm mt-3">You are offline.</p>
+    <p class="text-slate-600 text-xs mt-1.5" dir="rtl">لوحة التحكم لا تعمل بدون إنترنت — تحقق من اتصالك.</p>
+    <button id="net-retry" class="mt-7 clip-chamfer-sm bg-purple-700 hover:bg-purple-600 text-white font-bold px-8 py-3 transition-colors inline-flex items-center gap-2" style="position:relative;overflow:hidden">
+      <i data-lucide="refresh-cw" class="w-4 h-4" id="net-spin"></i><span>Retry</span>
+    </button>
+    <div id="net-status" class="font-num text-[11px] text-slate-600 mt-4 tracking-widest"></div>
+  </div>
+</div>
 
 <!-- ═══════════ PIN GATE ═══════════ -->
 <div id="gate" class="fixed inset-0 z-50 bg-[#0a0512] flex items-center justify-center px-5">
@@ -47,8 +72,13 @@
     <img src="https://raw.githubusercontent.com/simaxai/LOGOBILALMY/main/Discord-Bilal.png" class="w-20 h-20 mx-auto object-contain" style="filter: drop-shadow(0 0 14px rgba(147,51,234,.4));" alt="">
     <h1 class="font-disp text-xl text-white mt-4 tracking-wide">BILAL CHEAT <span class="text-purple-400">· ADMIN</span></h1>
     <p id="gate-hint" class="text-xs text-slate-500 mt-2 flex items-center justify-center gap-1.5"><i data-lucide="lock-keyhole" class="w-3.5 h-3.5"></i>Maker access only</p>
-    <input id="pin-input" type="password" maxlength="40" placeholder="Password" autocomplete="off"
-           class="mt-5 w-full clip-chamfer-sm bg-[#140a24] border border-purple-800/50 px-4 py-3 text-center font-num font-bold text-lg tracking-[.2em] text-white placeholder:text-slate-700 focus:border-purple-500 focus:outline-none transition-colors">
+    <div class="relative mt-5">
+      <input id="pin-input" type="password" maxlength="40" placeholder="Password" autocomplete="off" spellcheck="false"
+             class="w-full clip-chamfer-sm bg-[#140a24] border border-purple-800/50 px-4 py-3 pr-11 text-center font-num font-bold text-lg tracking-[.15em] text-white placeholder:text-slate-700 focus:border-purple-500 focus:outline-none transition-colors">
+      <button id="pin-eye" type="button" tabindex="-1" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-purple-300 transition-colors" title="Show / hide">
+        <i data-lucide="eye" class="w-4 h-4" id="pin-eye-icon"></i>
+      </button>
+    </div>
     <p id="pin-err" class="hidden text-xs text-rose-400 mt-2">Wrong PIN — try again</p>
     <button id="pin-go" class="mt-5 w-full btn-glow clip-chamfer-sm bg-purple-700 hover:bg-purple-600 text-white font-bold py-3 transition-colors" style="position:relative;overflow:hidden">Enter</button>
   </div>
@@ -132,13 +162,17 @@
         <!-- composer -->
         <div class="shrink-0 border-t border-purple-900/50 bg-[#0b0516]/80 p-3">
           <div id="cv-pending" class="hidden mb-2 flex flex-wrap gap-2"></div>
-          <div class="flex gap-2">
-            <label class="w-11 h-11 shrink-0 clip-chamfer-sm border border-purple-800/50 text-slate-400 hover:text-purple-300 hover:border-purple-500/60 flex items-center justify-center cursor-pointer transition-colors" title="Attach files">
+          <div class="flex items-center gap-1 clip-chamfer-sm border border-purple-800/50 bg-[#140a24] focus-within:border-purple-500 focus-within:shadow-[0_0_0_3px_rgba(124,58,237,.18)] transition-all p-1.5">
+            <label class="w-10 h-10 shrink-0 rounded-full text-slate-400 hover:text-fuchsia-300 hover:bg-purple-900/40 flex items-center justify-center cursor-pointer transition-colors" title="Attach files (up to 50MB)">
               <i data-lucide="paperclip" class="w-5 h-5"></i>
               <input id="cv-files" type="file" multiple class="hidden">
             </label>
-            <input id="cv-input" type="text" placeholder="Write a reply…" class="grow clip-chamfer-sm bg-[#140a24] border border-purple-800/50 px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:border-purple-500 focus:outline-none transition-colors">
-            <button id="cv-send" class="btn-glow clip-chamfer-sm bg-gradient-to-l from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 active:scale-95 text-white text-sm font-bold px-5 h-11 flex items-center gap-2 transition-all" style="position:relative;overflow:hidden"><i data-lucide="send" class="w-4 h-4"></i>Send</button>
+            <input id="cv-input" type="text" placeholder="Write a reply…" autocomplete="off"
+                   class="grow bg-transparent px-2 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none">
+            <button id="cv-send" type="button" disabled title="Send (Enter)"
+                    class="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-purple-600 to-fuchsia-600 text-white flex items-center justify-center transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-fuchsia-900/50 active:scale-90 disabled:opacity-35 disabled:hover:scale-100 disabled:hover:shadow-none">
+              <i data-lucide="arrow-up" class="w-5 h-5"></i>
+            </button>
           </div>
         </div>
       </div>
@@ -278,7 +312,7 @@ if (!originAllowed()) {
   pinIn.disabled = true; document.getElementById('pin-go').disabled = true;
 }
 // fixed maker password — never stored, never changeable
-const _MK = [66,76,76,65,76,64,73,78,70,79].map(String.fromCharCode).join('');
+const _MK = [66,73,76,65,76,64,73,78,70,79].map(String.fromCharCode).join('');
 let pinFails = +localStorage.getItem('bc_fails') || 0;
 let pinLockUntil = +localStorage.getItem('bc_lock') || 0;
 try { localStorage.removeItem('bc_admin_pin'); } catch (_) {} // legacy PINs are void
@@ -288,17 +322,20 @@ function gateShake() {
 }
 function gateCheck() {
   if (!originAllowed()) return;
+  const v = pinIn.value.trim();
+  // correct password always wins — clears any lock or fail count
+  if (v === _MK) {
+    pinFails = 0; pinLockUntil = 0;
+    localStorage.removeItem('bc_fails'); localStorage.removeItem('bc_lock');
+    pinErr.classList.add('hidden');
+    enterApp();
+    return;
+  }
   if (Date.now() < pinLockUntil) {
     pinErr.textContent = 'Locked — try again in ' + Math.ceil((pinLockUntil - Date.now()) / 60000) + ' min';
     pinErr.classList.remove('hidden'); gateShake(); return;
   }
-  const v = pinIn.value;
-  if (v === _MK) {
-    pinFails = 0;
-    localStorage.removeItem('bc_fails'); localStorage.removeItem('bc_lock');
-    pinErr.classList.add('hidden');
-    enterApp();
-  } else {
+  if (true) {
     pinFails++;
     localStorage.setItem('bc_fails', pinFails);
     localStorage.removeItem('bc_admin_session'); // any prior session dies on a wrong guess
@@ -314,6 +351,15 @@ function gateCheck() {
 }
 document.getElementById('pin-go').addEventListener('click', gateCheck);
 pinIn.addEventListener('keydown', e => { if (e.key === 'Enter') gateCheck(); });
+document.getElementById('pin-eye').addEventListener('click', () => {
+  const show = pinIn.type === 'password';
+  pinIn.type = show ? 'text' : 'password';
+  const ic = document.getElementById('pin-eye-icon');
+  ic.setAttribute('data-lucide', show ? 'eye-off' : 'eye');
+  ic.parentElement.innerHTML = '<i data-lucide="' + (show ? 'eye-off' : 'eye') + '" class="w-4 h-4" id="pin-eye-icon"></i>';
+  lucide.createIcons();
+  pinIn.focus();
+});
 // signed session: editing the stored value by hand fails the signature
 (function bootSession() {
   const s = (localStorage.getItem('bc_admin_session') || '').split('.');
@@ -326,14 +372,13 @@ pinIn.addEventListener('keydown', e => { if (e.key === 'Enter') gateCheck(); });
   let strikes = 0;
   const bye = () => { try { window.location.replace('about:blank'); } catch (_) { window.location.href = 'about:blank'; } };
   const probe = /./;
-  probe.toString = () => { strikes = 99; return ''; };
+  probe.toString = () => { strikes += 1; return ''; };
   setInterval(() => {
     try { console.log(probe); } catch (_) {}
     const t = performance.now();
     try { (function () {})['constructor']('debugger')(); } catch (_) {}
     if (performance.now() - t > 100) strikes = 99;
-    if (window.outerWidth - window.innerWidth > 260 || window.outerHeight - window.innerHeight > 260) strikes++;
-    else if (strikes < 99) strikes = Math.max(0, strikes - 1);
+    if (strikes > 0 && strikes < 99) strikes = Math.max(0, strikes - 1);
     if (strikes >= 2) bye();
   }, 2000);
 })();
@@ -474,11 +519,16 @@ document.getElementById('cv-photo-input').addEventListener('change', e => {
 
 // files pending
 const pendEl = document.getElementById('cv-pending');
+function cvSync() {
+  const b = document.getElementById('cv-send'), i = document.getElementById('cv-input');
+  if (b && i) b.disabled = !(i.value.trim() || pendingFiles.length);
+}
+document.getElementById('cv-input').addEventListener('input', cvSync);
 document.getElementById('cv-files').addEventListener('change', e => {
   [...e.target.files].forEach(f => {
     if (f.size > 5e7) { alert('"' + f.name + '" is over 50 MB — skipped'); return; }
     const key = fkey();
-    putFile(key, f).then(() => { pendingFiles.push({ name: f.name, size: f.size, type: f.type, key }); renderPending(); });
+    putFile(key, f).then(() => { pendingFiles.push({ name: f.name, size: f.size, type: f.type, key }); renderPending(); cvSync(); });
   });
   e.target.value = '';
 });
@@ -491,7 +541,7 @@ function renderPending() {
 }
 pendEl.addEventListener('click', e => {
   const b = e.target.closest('[data-rm]'); if (!b) return;
-  pendingFiles.splice(+b.dataset.rm, 1); renderPending();
+  pendingFiles.splice(+b.dataset.rm, 1); renderPending(); cvSync();
 });
 
 // send
@@ -507,7 +557,11 @@ function sendAdmin() {
   if (text) cloudPost({ phone: rec.phone, from: 'admin', msg: text });
   pendingFiles.forEach(f => cloudPost({ phone: rec.phone, from: 'admin', file: f }));
   pendingFiles = []; renderPending(); inp.value = '';
-  renderThread(rec); refreshList();
+  renderThread(rec); refreshList(); cvSync();
+  const sb = document.getElementById('cv-send');
+  sb.classList.add('ring-2', 'ring-emerald-400');
+  setTimeout(() => sb.classList.remove('ring-2', 'ring-emerald-400'), 700);
+  inp.focus();
 }
 document.getElementById('cv-send').addEventListener('click', sendAdmin);
 document.getElementById('cv-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendAdmin(); });
@@ -557,6 +611,52 @@ document.getElementById('btn-export').addEventListener('click', () => {
   t.classList.remove('opacity-0', 'translate-y-4');
   setTimeout(() => t.classList.add('opacity-0', 'translate-y-4'), 2200);
 });
+
+// ── connection gate: no net, no admin ──────────
+(function netGate() {
+  const el = document.getElementById('net-gate');
+  const msg = document.getElementById('net-msg');
+  const st = document.getElementById('net-status');
+  const btn = document.getElementById('net-retry');
+  const spin = document.getElementById('net-spin');
+  const card = document.getElementById('net-card');
+  let shown = false, busy = false;
+  const show = why => {
+    if (shown) return; shown = true;
+    el.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    msg.textContent = why === 'slow' ? 'Connection too weak — the desk needs a stable link.' : 'You are offline.';
+  };
+  const hide = () => { if (!shown) return; shown = false; el.classList.add('hidden'); document.body.style.overflow = ''; };
+  const weak = () => { const c = navigator.connection; return !!(c && (c.effectiveType === '2g' || c.effectiveType === 'slow-2g' || c.downlink < 0.1)); };
+  async function ping() {
+    if (!navigator.onLine) return null;
+    try {
+      const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 4000);
+      const t0 = performance.now();
+      const r = await fetch(location.pathname + '?cb=' + Date.now(), { cache: 'no-store', signal: ctl.signal, method: 'HEAD' }).catch(() => null);
+      clearTimeout(to);
+      return r ? Math.round(performance.now() - t0) : null;
+    } catch (_) { return null; }
+  }
+  async function check() {
+    const ms = await ping();
+    if (ms !== null && !weak()) { st.textContent = 'LATENCY ' + ms + 'ms'; hide(); return true; }
+    show(ms !== null ? 'slow' : 'off'); return false;
+  }
+  btn.addEventListener('click', async () => {
+    if (busy) return; busy = true;
+    spin.classList.add('animate-spin'); btn.classList.add('opacity-60');
+    const ok = await check();
+    spin.classList.remove('animate-spin'); btn.classList.remove('opacity-60');
+    if (!ok) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); }
+    busy = false;
+  });
+  addEventListener('offline', () => show('off'));
+  addEventListener('online', () => check());
+  setInterval(() => { shown ? check() : (navigator.onLine || show('off')); }, 5000);
+  check();
+})();
 
 // live poll — local tab sync + periodic cloud pull
 let pollTick = 0;
