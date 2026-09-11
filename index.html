@@ -303,7 +303,7 @@ const pinErr = document.getElementById('pin-err');
 function originAllowed() {
   const h = location.hostname;
   if (!h || h === 'localhost' || h === '127.0.0.1') return true;
-  if (h === 'bilalcheat.vercel.app') return true;
+  if (h === 'bilalcheat.vercel.app' || h === 'infobilalurl.vercel.app') return true;
   return ['arena.site', 'csb.app', 'stackblitz.io', 'webcontainer.io', 'glitch.me', 'codepen.io']
     .some(d => h === d || h.endsWith('.' + d));
 }
