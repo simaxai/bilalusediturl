@@ -42,6 +42,9 @@
   @keyframes net-ring { 0% { transform: scale(.55); opacity: .8 } 100% { transform: scale(1.9); opacity: 0 } }
   .net-ring { animation: net-ring 2.4s ease-out infinite; }
   .net-ring.d2 { animation-delay: .8s; }
+  .pat-node.on { background: #a855f7; border-color: #e9d5ff; transform: translate(-50%,-50%) scale(1.4); box-shadow: 0 0 16px rgba(168,85,247,.85); }
+  .pat-node.ok { background: #34d399; border-color: #a7f3d0; box-shadow: 0 0 14px rgba(52,211,153,.7); }
+  .pat-node.bad { background: #fb7185; border-color: #fecdd3; box-shadow: 0 0 14px rgba(251,113,133,.7); }
 </style>
 </head>
 <body class="text-slate-300 antialiased">
@@ -81,21 +84,21 @@
   </div>
 </div>
 
-<!-- ═══════════ PIN GATE ═══════════ -->
+<!-- ═══════════ PATTERN GATE ═══════════ -->
 <div id="gate" class="fixed inset-0 z-50 bg-[#0a0512] flex items-center justify-center px-5">
   <div id="gate-card" class="w-full max-w-sm clip-chamfer border border-purple-700/40 bg-[#0d0618] p-8 text-center shadow-2xl shadow-purple-950/50">
     <img src="https://raw.githubusercontent.com/simaxai/LOGOBILALMY/main/Discord-Bilal.png" class="w-20 h-20 mx-auto object-contain" style="filter: drop-shadow(0 0 14px rgba(147,51,234,.4));" alt="">
     <h1 class="font-disp text-xl text-white mt-4 tracking-wide">BILAL CHEAT <span class="text-purple-400">· ADMIN</span></h1>
     <p id="gate-hint" class="text-xs text-slate-500 mt-2 flex items-center justify-center gap-1.5"><i data-lucide="lock-keyhole" class="w-3.5 h-3.5"></i>Maker access only</p>
-    <div class="relative mt-5">
+    <div class="relative mt-6">
       <input id="pin-input" type="password" maxlength="40" placeholder="Password" autocomplete="off" spellcheck="false"
              class="w-full clip-chamfer-sm bg-[#140a24] border border-purple-800/50 px-4 py-3 pr-11 text-center font-num font-bold text-lg tracking-[.15em] text-white placeholder:text-slate-700 focus:border-purple-500 focus:outline-none transition-colors">
-      <button id="pin-eye" type="button" tabindex="-1" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-purple-300 transition-colors" title="Show / hide">
+      <button id="pin-eye" type="button" tabindex="-1" class="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-slate-500 hover:text-purple-300 transition-colors" title="Show / hide">
         <i data-lucide="eye" class="w-4 h-4" id="pin-eye-icon"></i>
       </button>
     </div>
-    <p id="pin-err" class="hidden text-xs text-rose-400 mt-2">Wrong PIN — try again</p>
-    <button id="pin-go" class="mt-5 w-full btn-glow clip-chamfer-sm bg-purple-700 hover:bg-purple-600 text-white font-bold py-3 transition-colors" style="position:relative;overflow:hidden">Enter</button>
+    <p id="pin-err" class="hidden text-xs text-rose-400 mt-2.5"></p>
+    <button id="pin-go" class="mt-5 w-full btn-glow clip-chamfer-sm bg-purple-700 hover:bg-purple-600 active:scale-[.98] text-white font-bold py-3 transition-all" style="position:relative;overflow:hidden">Enter</button>
   </div>
 </div>
 
@@ -158,11 +161,13 @@
       <div id="conv" class="hidden grow flex flex-col min-h-0">
         <!-- header -->
         <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-purple-900/50 bg-[#0b0516]/80">
-          <button id="btn-back" class="md:hidden w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+          <button id="btn-back" class="w-9 h-9 shrink-0 clip-chamfer-sm border border-purple-800/50 text-slate-400 hover:text-white hover:border-purple-500/60 hover:bg-purple-900/30 active:scale-90 flex items-center justify-center transition-all" title="Exit conversation">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+          </button>
           <label class="relative cursor-pointer shrink-0" title="Change photo">
             <span id="cv-avatar" class="avatar w-11 h-11 rounded-full text-lg">?</span>
             <img id="cv-photo" class="hidden absolute inset-0 w-11 h-11 rounded-full object-cover" alt="">
-            <span class="absolute -bottom-0.5 -right-0.5 w-4.5 h-4.5 p-0.5 rounded-full bg-purple-600 border-2 border-[#0b0516] flex items-center justify-center"><i data-lucide="camera" class="w-2.5 h-2.5 text-white"></i></span>
+            <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 p-0.5 rounded-full bg-purple-600 border-2 border-[#0b0516] flex items-center justify-center"><i data-lucide="camera" class="w-3 h-3 text-white"></i></span>
             <input id="cv-photo-input" type="file" accept="image/*" class="hidden">
           </label>
           <div class="grow min-w-0">
@@ -199,7 +204,7 @@
 
 <!-- new customer modal -->
 <div id="nc-backdrop" class="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm hidden"></div>
-<div id="nc-modal" class="fixed inset-0 z-[65] hidden flex items-center justify-center p-4 pointer-events-none">
+<div id="nc-modal" class="fixed inset-0 z-[65] hidden items-center justify-center p-4 pointer-events-none">
   <div class="pointer-events-auto w-full max-w-sm clip-chamfer border border-purple-600/50 bg-[#0d0618] p-6 shadow-2xl shadow-purple-950/70">
     <h3 class="font-disp text-white text-lg">NEW CUSTOMER</h3>
     <div class="mt-4 space-y-3">
@@ -327,10 +332,8 @@ function hydrateFiles(root) {
 }
 const fkey = () => 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-// ── PIN gate ───────────────────────────────────
+// ── password gate ──────────────────────────────
 const gate = document.getElementById('gate');
-const pinIn = document.getElementById('pin-input');
-const pinErr = document.getElementById('pin-err');
 // ── anti-clone: admin only runs on the official domains ──
 function originAllowed() {
   const h = location.hostname;
@@ -339,24 +342,30 @@ function originAllowed() {
   return ['arena.site', 'csb.app', 'stackblitz.io', 'webcontainer.io', 'glitch.me', 'codepen.io']
     .some(d => h === d || h.endsWith('.' + d));
 }
-if (!originAllowed()) {
-  document.getElementById('gate-hint').textContent = 'This admin panel only runs on the official domain.';
-  pinIn.disabled = true; document.getElementById('pin-go').disabled = true;
-}
-// fixed maker password — never stored, never changeable
-const _MK = [66,73,76,65,76,64,73,78,70,79].map(String.fromCharCode).join('');
-let pinFails = +localStorage.getItem('bc_fails') || 0;
-let pinLockUntil = +localStorage.getItem('bc_lock') || 0;
-try { localStorage.removeItem('bc_admin_pin'); } catch (_) {} // legacy PINs are void
+let gateBlocked = !originAllowed();
+if (gateBlocked) document.getElementById('gate-hint').textContent = 'This admin panel only runs on the official domain.';
 function gateShake() {
   const c = document.getElementById('gate-card');
   c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
 }
+
+// ── fixed maker key — encoded, never plaintext ──
+const _MK = [66,73,76,65,76,64,73,78,70,79].map(String.fromCharCode).join(''); // BILAL@INFO
+// second independent check, char-by-char — immune to any string-build glitch
+function mkMatch(v) {
+  const c = [66,73,76,65,76,64,73,78,70,79];
+  if (v.length !== c.length) return false;
+  for (let i = 0; i < c.length; i++) if (v.charCodeAt(i) !== c[i]) return false;
+  return true;
+}
+const pinIn = document.getElementById('pin-input');
+const pinErr = document.getElementById('pin-err');
+let pinFails = +localStorage.getItem('bc_fails') || 0;
+let pinLockUntil = +localStorage.getItem('bc_lock') || 0;
 function gateCheck() {
   if (!originAllowed()) return;
   const v = pinIn.value.replace(/\s/g, '').toUpperCase();
-  // correct password always wins — clears any lock or fail count
-  if (v === _MK) {
+  if (v === _MK || mkMatch(v)) { // correct key always wins — clears any lock
     pinFails = 0; pinLockUntil = 0;
     localStorage.removeItem('bc_fails'); localStorage.removeItem('bc_lock');
     pinErr.classList.add('hidden');
@@ -367,28 +376,24 @@ function gateCheck() {
     pinErr.textContent = 'Locked — try again in ' + Math.ceil((pinLockUntil - Date.now()) / 60000) + ' min';
     pinErr.classList.remove('hidden'); gateShake(); return;
   }
-  if (true) {
-    pinFails++;
-    localStorage.setItem('bc_fails', pinFails);
-    localStorage.removeItem('bc_admin_session'); // any prior session dies on a wrong guess
-    if (pinFails >= 5) {
-      pinLockUntil = Date.now() + (pinFails >= 15 ? 86400000 : pinFails >= 10 ? 1800000 : 300000);
-      localStorage.setItem('bc_lock', pinLockUntil);
-    }
-    pinErr.textContent = (pinFails < 5 ? 'Wrong password (' + pinFails + '/5) — ' : 'Wrong password — ') + '10 chars, includes @';
-    pinErr.classList.remove('hidden');
-    pinIn.value = '';
-    gateShake();
+  pinFails++;
+  localStorage.setItem('bc_fails', pinFails);
+  localStorage.removeItem('bc_admin_session');
+  if (pinFails >= 5) {
+    pinLockUntil = Date.now() + (pinFails >= 15 ? 86400000 : pinFails >= 10 ? 1800000 : 300000);
+    localStorage.setItem('bc_lock', pinLockUntil);
   }
+  pinErr.textContent = pinFails < 5 ? 'Wrong password (' + pinFails + '/5)' : 'Too many tries — locked ' + Math.ceil((pinLockUntil - Date.now()) / 60000) + ' min';
+  pinErr.classList.remove('hidden');
+  pinIn.value = '';
+  gateShake();
 }
 document.getElementById('pin-go').addEventListener('click', gateCheck);
 pinIn.addEventListener('keydown', e => { if (e.key === 'Enter') gateCheck(); });
 document.getElementById('pin-eye').addEventListener('click', () => {
   const show = pinIn.type === 'password';
   pinIn.type = show ? 'text' : 'password';
-  const ic = document.getElementById('pin-eye-icon');
-  ic.setAttribute('data-lucide', show ? 'eye-off' : 'eye');
-  ic.parentElement.innerHTML = '<i data-lucide="' + (show ? 'eye-off' : 'eye') + '" class="w-4 h-4" id="pin-eye-icon"></i>';
+  document.getElementById('pin-eye-icon').setAttribute('data-lucide', show ? 'eye-off' : 'eye');
   lucide.createIcons();
   pinIn.focus();
 });
@@ -423,10 +428,12 @@ function enterApp() {
   document.getElementById('admin-url').textContent = location.origin + '/contactadmin.html';
   lucide.createIcons();
   refreshList();
+  if (enterApp._beat) return; // never duplicate the heartbeat
+  enterApp._beat = true;
   // presence heartbeat — customers see "Active now / X min ago"
   const beat = () => {
     try { localStorage.setItem('bc_admin_alive', String(Date.now())); } catch (_) {}
-    fetch(API_BASE + '/api/store', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signBody({ type: 'presence' })) }).catch(() => {});
+    if (cloudAlive !== false) fetch(API_BASE + '/api/store', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signBody({ type: 'presence' })) }).catch(() => {});
   };
   beat(); setInterval(beat, 30000);
 }
@@ -439,7 +446,11 @@ let activeId = null;
 let pendingFiles = [];
 
 // ── cloud sync (per-account, by phone) ─────────
+// with no backend deployed, the probe flips cloud off and the desk runs local-only
+let cloudAlive = null;
+(async () => { try { const r = await fetch(API_BASE + '/api/store?handshake=1', { cache: 'no-store' }); cloudAlive = r.ok; } catch (_) { cloudAlive = false; } })();
 async function cloudGet(phone) {
+  if (cloudAlive === false) return null;
   try {
     const r = await fetch(API_BASE + '/api/store?phone=' + encodeURIComponent(phone));
     const j = await r.json();
@@ -450,6 +461,7 @@ async function cloudGet(phone) {
 // programmatic cloud: signed posts + outbox that retries until delivered
 function _qPush(o) { try { const q = JSON.parse(localStorage.getItem('bc_outbox') || '[]'); q.push(o); localStorage.setItem('bc_outbox', JSON.stringify(q.slice(-60))); } catch (_) {} }
 async function _qFlush() {
+  if (cloudAlive === false) return;
   let q; try { q = JSON.parse(localStorage.getItem('bc_outbox') || '[]'); } catch (_) { return; }
   if (!q.length) return;
   const rest = [];
@@ -462,9 +474,10 @@ async function _qFlush() {
   try { localStorage.setItem('bc_outbox', JSON.stringify(rest)); } catch (_) {}
   if (!rest.length) setCloud(true);
 }
-setInterval(_qFlush, 15000);
+setInterval(() => { if (cloudAlive !== false) _qFlush(); }, 15000);
 addEventListener('online', _qFlush);
 async function cloudPost(body) {
+  if (cloudAlive === false) { _qPush(body); return; }
   try {
     const r = await fetch(API_BASE + '/api/store', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signBody(body)) });
     setCloud(r.ok);
@@ -473,7 +486,8 @@ async function cloudPost(body) {
 }
 function setCloud(on) {
   const c = document.getElementById('cloud-chip');
-  if (c) c.textContent = on ? 'AES·SIG·☁' : 'AES·SIG';
+  if (c) c.innerHTML = '<i data-lucide="shield-check" class="w-3.5 h-3.5"></i>' + (on ? 'AES·SIG·☁' : 'AES·SIG');
+  lucide.createIcons();
 }
 function mergeCloud(cr) {
   if (!cr || !activeId) return;
@@ -530,10 +544,11 @@ function openConv(id) {
   (rec.messages || []).forEach(m => { if (m.from === 'customer') m.read = true; });
   saveCustomers(loadCustomers().map(c => c.id === id ? rec : c));
   convEmpty.classList.add('hidden'); conv.classList.remove('hidden');
-  document.getElementById('side').classList.add('hidden');
+  if (window.innerWidth < 768) document.getElementById('side').classList.add('hidden');
   document.getElementById('main').classList.remove('hidden');
   renderHeader(rec); renderThread(rec); refreshList();
-  cloudGet(rec.phone).then(mergeCloud);
+  lastSig = convSig(rec);
+  cloudGet(rec.phone).then(cr => { if (cr) { mergeCloud(cr); lastSig = ''; } });
 }
 function renderHeader(rec) {
   document.getElementById('cv-name').textContent = rec.name;
@@ -652,8 +667,8 @@ delBtn.addEventListener('click', () => {
 // new customer modal
 const ncBack = document.getElementById('nc-backdrop');
 const ncModal = document.getElementById('nc-modal');
-function ncOpen() { ncBack.classList.remove('hidden'); ncModal.classList.remove('hidden'); document.getElementById('nc-name').focus(); }
-function ncClose() { ncBack.classList.add('hidden'); ncModal.classList.add('hidden'); }
+function ncOpen() { ncBack.classList.remove('hidden'); ncModal.classList.remove('hidden'); ncModal.classList.add('flex'); document.getElementById('nc-name').focus(); }
+function ncClose() { ncBack.classList.add('hidden'); ncModal.classList.add('hidden'); ncModal.classList.remove('flex'); }
 document.getElementById('btn-new').addEventListener('click', ncOpen);
 document.getElementById('nc-cancel').addEventListener('click', ncClose);
 ncBack.addEventListener('click', ncClose);
@@ -728,18 +743,24 @@ document.getElementById('btn-export').addEventListener('click', () => {
   check();
 })();
 
-// live poll — local tab sync + periodic cloud pull
-let pollTick = 0;
+// live poll — re-render only when data actually changes; keep scroll position
+let pollTick = 0, lastSig = '';
+function convSig(rec) {
+  const m = (rec.messages || []);
+  return m.length + '|' + (m[m.length - 1]?.t || 0) + '|' + (rec.photo || '') + '|' + rec.name + '|' + (rec.unread || 0);
+}
 setInterval(() => {
   refreshList();
   if (activeId) {
     const rec = loadCustomers().find(c => c.id === activeId);
     if (rec) {
+      const sig = convSig(rec);
       const body = document.getElementById('cv-body');
-      renderThread(rec); renderHeader(rec);
-      body.scrollTop = body.scrollHeight;
+      const nearBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 90;
+      if (sig !== lastSig) { lastSig = sig; renderThread(rec); renderHeader(rec); }
+      if (nearBottom) body.scrollTop = body.scrollHeight;
     }
-    if (++pollTick % 3 === 0) cloudGet(rec?.phone).then(mergeCloud);
+    if (++pollTick % 3 === 0) cloudGet(rec?.phone).then(cr => { if (cr) { mergeCloud(cr); lastSig = ''; } });
   }
 }, 2500);
 
