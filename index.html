@@ -100,7 +100,7 @@
     </div>
     <div class="flex items-center gap-2">
       <div class="hidden md:flex items-center gap-4 font-num text-xs text-slate-500 mr-3">
-        <span class="flex items-center gap-1.5 text-emerald-300/80" title="AES-256 at rest · signed requests · origin-locked"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i>AES·SIG·ORG</span>
+        <span id="cloud-chip" class="flex items-center gap-1.5 text-emerald-300/80" title="AES-256 at rest · signed requests · cloud sync"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i>AES·SIG</span>
         <span><b id="stat-cust" class="text-white text-sm">0</b> customers</span>
         <span><b id="stat-unread" class="text-fuchsia-300 text-sm">0</b> unread</span>
         <span><b id="stat-files" class="text-purple-300 text-sm">0</b> files</span>
@@ -204,6 +204,8 @@
 <script>
 // ── shared storage ─────────────────────────────
 // ── encrypted customer store (AES-256-GCM) ─────
+// both sites sync through ONE canonical API so messages meet in the same place
+const API_BASE = 'https://bilalcheat.vercel.app';
 const CUST_KEY = 'bc_customers_enc';
 const _SECRET = [66,105,108,97,108,67,104,101,97,116,35,68,90,50,48,50,54,87,111,108,102,33].map(String.fromCharCode).join('');
 const _SALT = 'bc-v1-salt';
@@ -222,13 +224,23 @@ function _doPersist() {
     const out = new Uint8Array(12 + cx.byteLength); out.set(iv); out.set(new Uint8Array(cx), 12);
     let s = ''; out.forEach(b => s += String.fromCharCode(b));
     localStorage.setItem(CUST_KEY, btoa(s));
-  }).catch(() => {});
+  }).catch(() => {
+    try {
+      const slim = _cc.map(c => Object.assign({}, c, { photo: null }));
+      const iv2 = crypto.getRandomValues(new Uint8Array(12));
+      crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv2 }, _ck, new TextEncoder().encode(JSON.stringify(slim))).then(cx2 => {
+        const out2 = new Uint8Array(12 + cx2.byteLength); out2.set(iv2); out2.set(new Uint8Array(cx2), 12);
+        let s2 = ''; out2.forEach(b => s2 += String.fromCharCode(b));
+        localStorage.setItem(CUST_KEY, btoa(s2));
+      }).catch(() => {});
+    } catch (_) {}
+  });
 }
 const _ready = (async () => {
   try {
     if (!globalThis.crypto || !crypto.subtle) throw 0; // non-secure context fallback
     let _frag = '';
-    try { const hr = await fetch('/api/store?handshake=1'); const hj = await hr.json(); if (hj && hj.ok) { _frag = hj.frag || ''; _NONCE = hj.nonce || ''; } } catch (_) {}
+    try { const hr = await fetch(API_BASE + '/api/store?handshake=1'); const hj = await hr.json(); if (hj && hj.ok) { _frag = hj.frag || ''; _NONCE = hj.nonce || ''; } } catch (_) {}
     _FRAG = _frag;
     const enc = new TextEncoder();
     const base = await crypto.subtle.importKey('raw', enc.encode(_SECRET + _frag), 'PBKDF2', false, ['deriveKey']);
@@ -322,7 +334,7 @@ function gateShake() {
 }
 function gateCheck() {
   if (!originAllowed()) return;
-  const v = pinIn.value.trim();
+  const v = pinIn.value.replace(/\s/g, '').toUpperCase();
   // correct password always wins — clears any lock or fail count
   if (v === _MK) {
     pinFails = 0; pinLockUntil = 0;
@@ -394,7 +406,7 @@ function enterApp() {
   // presence heartbeat — customers see "Active now / X min ago"
   const beat = () => {
     try { localStorage.setItem('bc_admin_alive', String(Date.now())); } catch (_) {}
-    fetch('/api/store', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signBody({ type: 'presence' })) }).catch(() => {});
+    fetch(API_BASE + '/api/store', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signBody({ type: 'presence' })) }).catch(() => {});
   };
   beat(); setInterval(beat, 30000);
 }
@@ -408,11 +420,20 @@ let pendingFiles = [];
 
 // ── cloud sync (per-account, by phone) ─────────
 async function cloudGet(phone) {
-  try { const r = await fetch('/api/store?phone=' + encodeURIComponent(phone)); const j = await r.json(); return j.ok ? j.rec : null; }
-  catch (_) { return null; }
+  try {
+    const r = await fetch(API_BASE + '/api/store?phone=' + encodeURIComponent(phone));
+    const j = await r.json();
+    setCloud(j.ok);
+    return j.ok ? j.rec : null;
+  } catch (_) { setCloud(false); return null; }
 }
 async function cloudPost(body) {
-  try { await fetch('/api/store', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signBody(body)) }); } catch (_) {}
+  try { const r = await fetch(API_BASE + '/api/store', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signBody(body)) }); setCloud(r.ok); }
+  catch (_) { setCloud(false); }
+}
+function setCloud(on) {
+  const c = document.getElementById('cloud-chip');
+  if (c) c.textContent = on ? 'AES·SIG·☁' : 'AES·SIG';
 }
 function mergeCloud(cr) {
   if (!cr || !activeId) return;
