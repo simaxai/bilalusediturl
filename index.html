@@ -46,6 +46,21 @@
 </head>
 <body class="text-slate-300 antialiased">
 
+<!-- loader: nothing shows until assets are ready -->
+<div id="loader" class="fixed inset-0 z-[300] bg-[#0a0512] flex flex-col items-center justify-center gap-4">
+  <img src="https://raw.githubusercontent.com/simaxai/LOGOBILALMY/main/Discord-Bilal.png" class="w-24 h-24 object-contain" style="filter: drop-shadow(0 0 14px rgba(147,51,234,.45)); animation: lpulse 1.6s ease-in-out infinite;" alt="">
+  <div class="font-disp text-base text-white tracking-[.25em]">BILAL <span class="text-purple-400">· ADMIN</span></div>
+</div>
+<style>@keyframes lpulse { 0%,100% { transform: scale(1); opacity: .9 } 50% { transform: scale(1.07); opacity: 1 } }</style>
+<script>
+(function () {
+  var l = document.getElementById('loader'), d = false;
+  var go = function () { if (d) return; d = true; l.style.transition = 'opacity .4s'; l.style.opacity = '0'; setTimeout(function () { l.remove(); }, 450); };
+  addEventListener('load', go);
+  setTimeout(go, 3500);
+})();
+</script>
+
 <!-- ═══════════ CONNECTION GATE ═══════════ -->
 <div id="net-gate" class="hidden fixed inset-0 z-[200] bg-[#0a0512] flex items-center justify-center px-5">
   <div class="absolute inset-0 pointer-events-none" style="background: radial-gradient(ellipse at 50% 40%, rgba(76,29,149,.25), transparent 60%);"></div>
@@ -280,7 +295,8 @@ async function putFile(key, blob) {
   try {
     const db = await _idb();
     await new Promise((res, rej) => { const tx = db.transaction(IDB_STORE, 'readwrite'); tx.objectStore(IDB_STORE).put(blob, key); tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
-  } catch (_) {}
+    return true;
+  } catch (_) { return false; } // IDB unavailable (file:// / private mode) → caller keeps a dataURL fallback
 }
 async function getFile(key) {
   try {
@@ -300,7 +316,11 @@ function hydrateFiles(root) {
         el.classList.remove('animate-pulse', 'opacity-40');
         if (el.tagName === 'IMG') { el.classList.add('msg-in'); el.src = url; } else el.href = url;
       } else if (attempt < 6) setTimeout(() => fill(attempt + 1), 300);
-      else { el._done = true; el.classList.remove('animate-pulse'); el.classList.add('opacity-40'); }
+      else {
+        el._done = true; el.classList.remove('animate-pulse');
+        const has = el.tagName === 'IMG' ? el.getAttribute('src') : el.getAttribute('href');
+        if (!has || has === '#') el.classList.add('opacity-40'); // dataURL fallback already live — keep it bright
+      }
     };
     fill(0);
   });
@@ -355,7 +375,7 @@ function gateCheck() {
       pinLockUntil = Date.now() + (pinFails >= 15 ? 86400000 : pinFails >= 10 ? 1800000 : 300000);
       localStorage.setItem('bc_lock', pinLockUntil);
     }
-    pinErr.textContent = 'Wrong password' + (pinFails < 5 ? ' (' + pinFails + '/5)' : '');
+    pinErr.textContent = (pinFails < 5 ? 'Wrong password (' + pinFails + '/5) — ' : 'Wrong password — ') + '10 chars, includes @';
     pinErr.classList.remove('hidden');
     pinIn.value = '';
     gateShake();
@@ -427,9 +447,29 @@ async function cloudGet(phone) {
     return j.ok ? j.rec : null;
   } catch (_) { setCloud(false); return null; }
 }
+// programmatic cloud: signed posts + outbox that retries until delivered
+function _qPush(o) { try { const q = JSON.parse(localStorage.getItem('bc_outbox') || '[]'); q.push(o); localStorage.setItem('bc_outbox', JSON.stringify(q.slice(-60))); } catch (_) {} }
+async function _qFlush() {
+  let q; try { q = JSON.parse(localStorage.getItem('bc_outbox') || '[]'); } catch (_) { return; }
+  if (!q.length) return;
+  const rest = [];
+  for (const o of q) {
+    try {
+      const r = await fetch(API_BASE + '/api/store', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signBody(o)) });
+      if (!r.ok) { rest.push(o); break; }
+    } catch (_) { rest.push(o); break; }
+  }
+  try { localStorage.setItem('bc_outbox', JSON.stringify(rest)); } catch (_) {}
+  if (!rest.length) setCloud(true);
+}
+setInterval(_qFlush, 15000);
+addEventListener('online', _qFlush);
 async function cloudPost(body) {
-  try { const r = await fetch(API_BASE + '/api/store', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signBody(body)) }); setCloud(r.ok); }
-  catch (_) { setCloud(false); }
+  try {
+    const r = await fetch(API_BASE + '/api/store', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(signBody(body)) });
+    setCloud(r.ok);
+    if (r.ok) _qFlush(); else _qPush(body);
+  } catch (_) { setCloud(false); _qPush(body); }
 }
 function setCloud(on) {
   const c = document.getElementById('cloud-chip');
@@ -549,7 +589,15 @@ document.getElementById('cv-files').addEventListener('change', e => {
   [...e.target.files].forEach(f => {
     if (f.size > 5e7) { alert('"' + f.name + '" is over 50 MB — skipped'); return; }
     const key = fkey();
-    putFile(key, f).then(() => { pendingFiles.push({ name: f.name, size: f.size, type: f.type, key }); renderPending(); cvSync(); });
+    const rd = new FileReader();
+    rd.onload = () => {
+      const dataUrl = rd.result;
+      putFile(key, f).then(ok => {
+        pendingFiles.push({ name: f.name, size: f.size, type: f.type, key, data: ok ? undefined : dataUrl });
+        renderPending(); cvSync();
+      });
+    };
+    rd.readAsDataURL(f);
   });
   e.target.value = '';
 });
@@ -635,6 +683,7 @@ document.getElementById('btn-export').addEventListener('click', () => {
 
 // ── connection gate: no net, no admin ──────────
 (function netGate() {
+  if (location.protocol === 'file:') return; // standalone file mode: never block
   const el = document.getElementById('net-gate');
   const msg = document.getElementById('net-msg');
   const st = document.getElementById('net-status');
