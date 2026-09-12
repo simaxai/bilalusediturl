@@ -495,19 +495,38 @@ const BRIDGE_SECRET = djb2('bc-bridge-v1:' + _SECRET);
 const STORE_ORIGIN = 'https://bilalcheat.vercel.app';
 let bridgeWin = null, bridgeOk = false;
 (function bridge() {
-  const f = document.createElement('iframe');
-  f.src = STORE_ORIGIN + '/#top';
-  f.style.cssText = 'position:fixed;width:2px;height:2px;opacity:0;pointer-events:none;border:0;left:-20px;top:-20px';
-  f.setAttribute('aria-hidden', 'true');
-  f.addEventListener('load', () => { bridgeWin = f.contentWindow; });
-  document.body.appendChild(f);
+  let tries = 0;
+  const spawn = () => {
+    if (bridgeWin || tries > 4) return;
+    tries++;
+    const f = document.createElement('iframe');
+    f.src = STORE_ORIGIN + '/#top';
+    f.style.cssText = 'position:fixed;width:2px;height:2px;opacity:0;pointer-events:none;border:0;left:-20px;top:-20px';
+    f.setAttribute('aria-hidden', 'true');
+    f.addEventListener('load', () => { bridgeWin = f.contentWindow; });
+    document.body.appendChild(f);
+  };
+  spawn();
+  // if the frame was refused or crashed, respawn until the link is live
+  setInterval(() => { if (!bridgeWin || bridgeWin.closed) { bridgeWin = null; spawn(); } }, 8000);
 })();
 function bridgePush() {
   if (bridgeWin) { try { bridgeWin.postMessage({ bc: BRIDGE_SECRET, cmd: 'set', customers: _cc }, STORE_ORIGIN); } catch (_) {} }
 }
 setInterval(() => {
   if (bridgeWin) { try { bridgeWin.postMessage({ bc: BRIDGE_SECRET, cmd: 'get' }, STORE_ORIGIN); } catch (_) {} }
-}, 3000);
+}, 1200);
+// self-diagnosis: if the bridge never answers, tell the maker exactly why
+setTimeout(() => {
+  if (bridgeOk) return;
+  const c = document.getElementById('cloud-chip');
+  if (c) {
+    c.innerHTML = '<i data-lucide="unlink" class="w-3.5 h-3.5"></i>BRIDGE ✕';
+    c.className = 'flex items-center gap-1.5 text-amber-400';
+    c.title = 'Bridge to the store is blocked. Fix one of:\n1) Remove vercel.json from the store project (frame-ancestors blocks the hidden link), then redeploy.\n2) OR upload BOTH html files into ONE Vercel project so they share the same address.';
+    lucide.createIcons();
+  }
+}, 12000);
 function mergeRemoteAdmin(remote) {
   let changed = false;
   (remote || []).forEach(r => {
@@ -528,7 +547,7 @@ function mergeRemoteAdmin(remote) {
   }
 }
 addEventListener('message', e => {
-  if (e.origin !== STORE_ORIGIN && e.origin !== location.origin) return;
+  // secret-gated channel: trust the signature, not the host
   const d = e.data || {};
   if (d.bc !== BRIDGE_SECRET) return;
   if (!bridgeOk) { bridgeOk = true; setCloud(true); }
