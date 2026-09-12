@@ -405,13 +405,6 @@ document.getElementById('pin-eye').addEventListener('click', () => {
   lucide.createIcons();
   pinIn.focus();
 });
-// signed session: editing the stored value by hand fails the signature
-(function bootSession() {
-  const s = (localStorage.getItem('bc_admin_session') || '').split('.');
-  const ts = +s[0] || 0;
-  if (ts > Date.now() && s[1] === djb2('sess' + ts + _MK)) enterApp();
-})();
-
 // ── devtools ejection: open them and you're out ──
 (function eject() {
   let strikes = 0;
@@ -583,7 +576,7 @@ const listEl = document.getElementById('cust-list');
 const searchEl = document.getElementById('search');
 function refreshList() {
   const all = loadCustomers().sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
-  const q = searchEl.value.trim().toLowerCase();
+  const q = (searchEl ? searchEl.value : '').trim().toLowerCase();
   const shown = all.filter(c => !q || c.name.toLowerCase().includes(q) || (c.phone || '').toLowerCase().includes(q));
   document.getElementById('list-empty').classList.toggle('hidden', shown.length > 0);
   document.getElementById('stat-cust').textContent = all.length;
@@ -865,6 +858,15 @@ setInterval(() => {
     }
   } catch (_) {}
 }, 1500);
+
+// signed session auto-login — MUST run last: every const, listener and loop is alive by now
+(function bootSession() {
+  try {
+    const s = (localStorage.getItem('bc_admin_session') || '').split('.');
+    const ts = +s[0] || 0;
+    if (ts > Date.now() && s[1] === djb2('sess' + ts + _MK)) enterApp();
+  } catch (_) {}
+})();
 
 lucide.createIcons();
 </script>
