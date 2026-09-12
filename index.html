@@ -810,7 +810,7 @@ document.getElementById('btn-export').addEventListener('click', () => {
 })();
 
 // live poll — re-render only when data actually changes; keep scroll position
-let pollTick = 0, lastSig = '';
+let pollTick = 0, lastSig = 0, idxTick = 0;
 function convSig(rec) {
   const m = (rec.messages || []);
   return m.length + '|' + (m[m.length - 1]?.t || 0) + '|' + (rec.photo || '') + '|' + rec.name + '|' + (rec.unread || 0);
@@ -827,6 +827,21 @@ setInterval(() => {
       if (nearBottom) body.scrollTop = body.scrollHeight;
     }
     if (++pollTick % 3 === 0) cloudGet(rec?.phone).then(cr => { if (cr) { mergeCloud(cr); lastSig = ''; } });
+  }
+  // discover new customers from the cloud index — no bridge required
+  if (cloudAlive !== false && ++idxTick % 2 === 0) {
+    fetch(API_BASE + '/api/store?index=1', { cache: 'no-store' }).then(r => r.json()).then(j => {
+      if (!j.ok || !Array.isArray(j.index)) return;
+      j.index.filter(p => !_cc.some(c => c.phone === p)).forEach(p => {
+        cloudGet(p).then(cr => {
+          if (!cr || !cr.phone) return;
+          _cc.push({ id: 'c' + String(cr.phone).slice(-6) + Date.now().toString(36), name: cr.name || 'Customer', phone: cr.phone,
+            plan: cr.plan || '', color: avColor(cr.name || '?'), photo: cr.photo || null,
+            createdAt: Date.now(), lastSeen: Date.now(), unread: (cr.messages || []).filter(m => m.from === 'customer').length, messages: cr.messages || [] });
+          saveCustomers(_cc); refreshList();
+        });
+      });
+    }).catch(() => {});
   }
 }, 2500);
 
