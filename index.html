@@ -489,6 +489,51 @@ function setCloud(on) {
   if (c) c.innerHTML = '<i data-lucide="shield-check" class="w-3.5 h-3.5"></i>' + (on ? 'AES·SIG·☁' : 'AES·SIG');
   lucide.createIcons();
 }
+
+// ── cross-origin bridge: hidden signed channel to the store, no server needed ──
+const BRIDGE_SECRET = djb2('bc-bridge-v1:' + _SECRET);
+const STORE_ORIGIN = 'https://bilalcheat.vercel.app';
+let bridgeWin = null, bridgeOk = false;
+(function bridge() {
+  const f = document.createElement('iframe');
+  f.src = STORE_ORIGIN + '/#top';
+  f.style.cssText = 'position:fixed;width:2px;height:2px;opacity:0;pointer-events:none;border:0;left:-20px;top:-20px';
+  f.setAttribute('aria-hidden', 'true');
+  f.addEventListener('load', () => { bridgeWin = f.contentWindow; });
+  document.body.appendChild(f);
+})();
+function bridgePush() {
+  if (bridgeWin) { try { bridgeWin.postMessage({ bc: BRIDGE_SECRET, cmd: 'set', customers: _cc }, STORE_ORIGIN); } catch (_) {} }
+}
+setInterval(() => {
+  if (bridgeWin) { try { bridgeWin.postMessage({ bc: BRIDGE_SECRET, cmd: 'get' }, STORE_ORIGIN); } catch (_) {} }
+}, 3000);
+function mergeRemoteAdmin(remote) {
+  let changed = false;
+  (remote || []).forEach(r => {
+    if (!r || !r.phone) return;
+    let loc = _cc.find(c => c.id === r.id || (c.phone && c.phone === r.phone));
+    if (!loc) { _cc.push(r); changed = true; return; }
+    (r.messages || []).forEach(m => {
+      if (!loc.messages.some(x => Math.abs(x.t - m.t) < 1500 && x.from === m.from && (x.text || '') === (m.text || ''))) { loc.messages.push(m); changed = true; }
+    });
+    loc.messages.sort((a, b) => a.t - b.t);
+    if (r.photo && !loc.photo) { loc.photo = r.photo; changed = true; }
+    if ((r.unread || 0) !== (loc.unread || 0)) loc.unread = r.unread;
+  });
+  if (changed) {
+    saveCustomers(_cc);
+    refreshList();
+    if (activeId) { const rec = _cc.find(c => c.id === activeId); if (rec) { renderHeader(rec); renderThread(rec); } }
+  }
+}
+addEventListener('message', e => {
+  if (e.origin !== STORE_ORIGIN && e.origin !== location.origin) return;
+  const d = e.data || {};
+  if (d.bc !== BRIDGE_SECRET) return;
+  if (!bridgeOk) { bridgeOk = true; setCloud(true); }
+  if (d.cmd === 'data' && Array.isArray(d.customers)) mergeRemoteAdmin(d.customers);
+});
 function mergeCloud(cr) {
   if (!cr || !activeId) return;
   const all = loadCustomers(); const rec = all.find(c => c.id === activeId); if (!rec) return;
@@ -587,7 +632,7 @@ document.getElementById('cv-photo-input').addEventListener('change', e => {
   r.onload = () => {
     const phone = loadCustomers().find(c => c.id === activeId)?.phone;
     saveCustomers(loadCustomers().map(c => c.id === activeId ? Object.assign(c, { photo: r.result }) : c));
-    renderHeader(loadCustomers().find(c => c.id === activeId)); refreshList();
+    renderHeader(loadCustomers().find(c => c.id === activeId)); refreshList(); bridgePush();
     if (phone) cloudPost({ phone, photo: r.result });
   };
   r.readAsDataURL(f);
@@ -641,7 +686,7 @@ function sendAdmin() {
   if (text) cloudPost({ phone: rec.phone, from: 'admin', msg: text });
   pendingFiles.forEach(f => cloudPost({ phone: rec.phone, from: 'admin', file: f }));
   pendingFiles = []; renderPending(); inp.value = '';
-  renderThread(rec); refreshList(); cvSync();
+  renderThread(rec); refreshList(); cvSync(); bridgePush();
   const sb = document.getElementById('cv-send');
   sb.classList.add('ring-2', 'ring-emerald-400');
   setTimeout(() => sb.classList.remove('ring-2', 'ring-emerald-400'), 700);
@@ -661,6 +706,7 @@ delBtn.addEventListener('click', () => {
   }
   saveCustomers(loadCustomers().filter(c => c.id !== activeId));
   delArmed = false; delBtn.innerHTML = '<i data-lucide="trash-2" class="w-4 h-4"></i>'; lucide.createIcons();
+  bridgePush();
   document.getElementById('btn-back').click();
 });
 
@@ -681,6 +727,7 @@ document.getElementById('nc-save').addEventListener('click', () => {
     color: avColor(name), photo: null, createdAt: Date.now(), lastSeen: Date.now(), unread: 0, messages: [] });
   saveCustomers(all);
   cloudPost({ phone, name, plan: document.getElementById('nc-plan').value });
+  bridgePush();
   document.getElementById('nc-name').value = ''; document.getElementById('nc-phone').value = '';
   ncClose(); refreshList();
 });
